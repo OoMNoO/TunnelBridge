@@ -1,0 +1,11 @@
+@reboot sleep 20; curl -X POST http://192.168.1.1/login -H "Content-Type: application/x-www-form-urlencoded" -d "username=USERNAME&password=PASSWORD"
+@reboot sleep 50; ssh -R 8084:localhost:22 -N -f root@domain.com -i .ssh/server
+
+0 * * * * curl -X POST http://192.168.1.1/login -H "Content-Type: application/x-www-form-urlencoded" -d "username=USERNAMEd&password=PASSWORD"
+0 10 * * * ssh -R 8085:localhost:22 -N -f root@domain.com -i .ssh/server
+0 12 * * * ssh -R 8086:localhost:22 -N -f root@domain.com -i .ssh/server
+0 14 * * * ssh -R 8087:localhost:22 -N -f root@domain.com -i .ssh/server
+0 16 * * * ssh -R 8088:localhost:22 -N -f root@domain.com -i .ssh/server
+0 18 * * * ssh -R 8089:localhost:22 -N -f root@domain.com -i .ssh/server
+0 20 * * * ssh -R 8090:localhost:22 -N -f root@domain.com -i .ssh/server
+0 22 * * * ssh -R 8091:localhost:22 -N -f root@domain.com -i .ssh/server

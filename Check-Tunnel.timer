@@ -1,0 +1,9 @@
+# /etc/systemd/system/
+[Unit]
+Description=Every 15min check if tunnel to middle man server exists, if not create one.
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=15min
+AccuracySec=1ms
+[Install]
+WantedBy=timers.target
