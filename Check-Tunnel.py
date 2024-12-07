@@ -7,6 +7,7 @@ import time
 from bs4 import BeautifulSoup
 
 def is_port_in_use(port: int) -> bool:
+    """Check if a given port is in use."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
 
@@ -26,27 +27,46 @@ def internet(host="domain.com", port=22, timeout=10):
 
 
 def tunnel_to_server():
-    print(f"checking tunnel status and port availability")
-    port_in_use = is_port_in_use(48084)
-    if(port_in_use):
-        print(f"port is in use, tunnel is available")
+    """Ensure SSH tunnel to server is active."""
+    print("Checking tunnel status and port availability...")
+    if is_port_in_use(48084):
+        print("Port is in use, tunnel is available.")
     else:
-        print(f"port is free, no tunnel is available on it,")
-        print(f"reconnecting the tunnel")
-        subprocess.Popen("ssh -R 48084:localhost:22 -N -f root@domain.com -i /home/user/.ssh/server", shell=True, env=os.environ)
+        print("Port is free; reconnecting the tunnel...")
+        command = [
+            "ssh",
+            "-R", "48084:localhost:22",
+            "-N", "-f",
+            "root@domain.com",
+            "-i", "/home/user/.ssh/server"
+        ]
+        try:
+            subprocess.Popen(command, env=os.environ)
+            print("Tunnel reconnected to server.")
+        except Exception as e:
+            print(f"Failed to reconnect tunnel to server: {e}")
 
 def tunnel_to_ngrok():
+    """Ensure Ngrok tunnel is active."""
+    print("Checking Ngrok tunnel status...")
     try:
-        req = requests.get('http://127.0.0.1:4040/api/tunnels')
-        soup = BeautifulSoup(req.text, 'lxml')
-        tunnelsjson = json.loads(soup.find('p').text)
-        url = tunnelsjson['tunnels'][0]['public_url']
-        print(f"tunnel to ngrok exist on:")
-        print(url)
+        response = requests.get('http://127.0.0.1:4040/api/tunnels', timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        if data['tunnels']:
+            url = data['tunnels'][0]['public_url']
+            print(f"Ngrok tunnel exists at: {url}")
+        else:
+            print("No active Ngrok tunnels found.")
+            raise ValueError("No tunnels available.")
     except Exception as e:
-        print("no ngrok connection")
-        print(f"recreating tunnel to ngrok")
-        subprocess.Popen("ngrok tcp 22 > /dev/null &", shell=True, env=os.environ)
+        print(f"Ngrok connection issue: {e}")
+        print("Recreating Ngrok tunnel...")
+        try:
+            subprocess.Popen(["ngrok", "tcp", "22"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=os.environ)
+            print("Ngrok tunnel created.")
+        except Exception as e:
+            print(f"Failed to create Ngrok tunnel: {e}")
         
 def main():
     connection = internet()
