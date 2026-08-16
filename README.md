@@ -1,155 +1,246 @@
-# Tunneling Script with Daily Logging
+# TunnelBridge
 
-This script ensures reliable SSH and Ngrok tunneling while maintaining logs of its operations. It is designed to manage connectivity, detect port availability, and re-establish tunnels when necessary. Logs are rotated daily for easier tracking and debugging.
+Scripts for managing SSH and Ngrok tunnels in closed or restricted network environments. TunnelBridge helps maintain connectivity, monitor tunnel availability, and automatically re-establish tunnels when needed.
 
 ## Features
 
-- **SSH Tunnel Management**:
+- **SSH Tunnel Management**
 
-  - Checks the status of an SSH tunnel and reconnects it if necessary.
-  - Uses port 48084 for the tunnel to the remote server.
+  - Establishes and maintains reverse SSH tunnels.
+  - Automatically reconnects SSH tunnels when necessary.
+  - Uses configurable remote-forwarding ports.
 
-- **Ngrok Tunnel Management**:
+- **Ngrok Tunnel Management**
 
-  - Verifies if an active Ngrok tunnel exists.
-  - Automatically recreates the tunnel if not available.
+  - Checks whether an active Ngrok tunnel is available.
+  - Automatically recreates the tunnel when necessary.
+  - Supports TCP tunneling for SSH and other services.
 
-- **Network Connectivity Check**:
+- **Network Connectivity Check**
 
-  - Ensures the script runs only when there is an active internet connection.
-  - Attempts to reconnect to the network using a predefined login if the connection is lost.
+  - Checks connectivity to a configurable remote host.
+  - Can optionally attempt to reconnect to a network requiring web-based authentication.
 
-- **Daily Rotating Logs**:
-  - Logs all script operations in a `logs` directory.
-  - Creates a new log file every day with the format `YYYY-MM-DD.log`.
-  - Log entries include timestamps and categorized levels (`INFO`, `WARNING`, `ERROR`).
+- **Daily Logging**
+
+  - Stores script activity in a `logs` directory.
+  - Creates a separate log file for each day.
+  - Includes timestamps and log levels (`INFO`, `WARNING`, `ERROR`).
 
 ## Prerequisites
 
-1. **Python Libraries**:
+### Python
 
-   - `requests`
-   - `BeautifulSoup` (`bs4`)
+The tunnel monitoring script requires:
 
-   Install them using:
+- Python 3
+- `requests`
+- `beautifulsoup4`
 
-   ```bash
-   pip install requests beautifulsoup4
-   ```
+Install the Python dependencies with:
 
-2. **Ngrok**:
+```bash
+pip install requests beautifulsoup4
+```
 
-   - Ensure Ngrok is installed and accessible in the system's PATH.
+### SSH
 
-3. **SSH Configuration**:
+Ensure OpenSSH is installed and configured for key-based authentication.
 
-   - Add your SSH private key (/home/user/.ssh/server) and ensure the target server (domain.com) is configured for key-based authentication.
+The SSH key should **not** be stored in this repository. Configure the scripts to use a private key located outside the repository.
 
-4. **Network Login**:
+### Autossh
 
-   - Update the login credentials (USERNAME, PASSWORD) and endpoint (http://192.168.1.1/login) in the script for your network.
+The reverse SSH helper scripts require `autossh` and `tmux`.
 
-## How It Works
+Install them using your system's package manager. For example, on Debian/Ubuntu:
 
-1. **Port Availability**:
+```bash
+sudo apt install autossh tmux
+```
 
-   - Checks if port `48084` is in use to determine if the SSH tunnel is active.
+### Ngrok
 
-2. **Internet Connectivity**:
+Install Ngrok and ensure it is available in your system's `PATH`.
 
-   - Pings the remote server (`domain.com`) on port 22 to confirm internet access.
+## Scripts
 
-3. **Tunnel Management**:
+### `Check-Tunnel.py`
 
-   - If the SSH tunnel is not active, it reconnects.
-   - Verifies the existence of an Ngrok tunnel and recreates it if necessary.
+Monitors network connectivity and tunnel availability.
 
-4. **Logging**:
-   - Logs all activities, errors, and statuses into daily log files stored in a `logs` directory.
+It:
+
+1. Checks connectivity to a configured remote host.
+2. Checks whether the SSH reverse tunnel is available.
+3. Re-establishes the SSH tunnel if necessary.
+4. Checks for an active Ngrok tunnel.
+5. Recreates the Ngrok tunnel if necessary.
+6. Records activity in daily log files.
+
+### `start_reverse_ssh.sh`
+
+Starts a persistent reverse SSH tunnel using `autossh` inside a detached `tmux` session.
+
+The connection details should be configured for your environment and should not contain credentials or private keys in the repository.
+
+### `stop_reverse_ssh.sh`
+
+Stops the reverse SSH tunnel and terminates the associated `tmux` session.
+
+## Configuration
+
+The scripts contain environment-specific connection settings that must be adjusted before use.
+
+### SSH Tunnel
+
+Configure the SSH connection according to your environment:
+
+```bash
+autossh -M 0 -N \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -o ExitOnForwardFailure=yes \
+    -R <remote-port>:localhost:<local-port> \
+    <user>@<host> -p <ssh-port> -i <path-to-private-key>
+```
+
+Keep private keys outside the repository and use appropriate file permissions.
+
+### Ngrok
+
+For a TCP tunnel, configure the required local port:
+
+```bash
+ngrok tcp <port>
+```
+
+The Ngrok client must be installed and configured separately.
+
+### Network Login
+
+If your network requires authentication through a login endpoint, configure the endpoint and credentials for your environment.
+
+**Do not commit real usernames, passwords, API tokens, or other credentials to the repository.**
+
+For example:
+
+```python
+requests.post(
+    "<network-login-url>",
+    data={
+        "username": "<username>",
+        "password": "<password>"
+    }
+)
+```
 
 ## Usage
 
-1. Clone the repository:
+Clone the repository:
 
 ```bash
-git clone <repository_url>
-cd <repository_directory>
+git clone <repository-url>
+cd TunnelBridge
 ```
 
-2. Run the script:
+Make the shell scripts executable:
+
+```bash
+chmod +x start_reverse_ssh.sh stop_reverse_ssh.sh
+```
+
+Run the tunnel monitoring script:
 
 ```bash
 python3 Check-Tunnel.py
 ```
 
-3. Check logs:
+Start the reverse SSH tunnel:
 
-- Logs are stored in the `logs` directory with filenames like `2024-12-07.log`.
+```bash
+./start_reverse_ssh.sh
+```
 
-## Configuration
+Stop the reverse SSH tunnel:
 
-- **SSH Tunnel**:
+```bash
+./stop_reverse_ssh.sh
+```
 
-  - Update the SSH command to match your server and key configuration:
-    ```python
-    command = [
-        "ssh",
-        "-R", "48084:localhost:22",
-        "-N", "-f",
-        "root@domain.com",
-        "-i", "/path/to/your/ssh/key"
-    ]
-    ```
+## Logs
 
-- **Ngrok Port**:
+`Check-Tunnel.py` stores logs in the `logs` directory.
 
-  - Ensure the Ngrok command matches the desired service and port:
-    ```python
-    subprocess.Popen(["ngrok", "tcp", "22"], ...)
-    ```
+A new log file is created for each day using the following format:
 
-- **Network Login**:
-  - Replace the placeholder login URL and credentials:
-    ```python
-    requests.post("http://192.168.1.1/login", data={'username': 'USERNAME', 'password': 'PASSWORD'})
-    ```
+```text
+YYYY-MM-DD.log
+```
 
-## Example Log Output
+Example:
 
-```output
+```text
+logs/
+├── 2024-12-07.log
+├── 2024-12-08.log
+└── 2024-12-09.log
+```
+
+Example output:
+
+```text
 2024-12-07 10:00:00 - INFO - Script started.
 2024-12-07 10:00:01 - INFO - Internet connection status: True
 2024-12-07 10:00:01 - INFO - Checking Ngrok tunnel status...
-2024-12-07 10:00:02 - INFO - Ngrok tunnel exists at: https://1234.ngrok.io
+2024-12-07 10:00:02 - INFO - Ngrok tunnel exists at: tcp://example.ngrok.io
 2024-12-07 10:00:02 - INFO - Checking tunnel status and port availability...
 2024-12-07 10:00:02 - INFO - Port is in use, tunnel is available.
 ```
 
-## Notes
-
-- Ensure Ngrok and SSH are properly configured on your system before running this script.
-- Logs are stored in the `logs` directory relative to the script's location.
-
 ## Troubleshooting
 
-1. **Ngrok Not Found**:
+### Ngrok Not Found
 
-   - Ensure Ngrok is installed and accessible in your system's PATH.
-   - Test it with `ngrok version`.
+Ensure Ngrok is installed and available in `PATH`:
 
-2. **SSH Tunnel Issues**:
+```bash
+ngrok version
+```
 
-   - Verify that your SSH key and server configuration are correct.
-   - Check server `logs` for SSH connection errors.
+### SSH Tunnel Issues
 
-3. **No Logs Created**:
+Check that:
 
-   - Ensure the script has write permissions for the `logs` directory.
+- The SSH server is reachable.
+- The configured SSH port is correct.
+- The SSH key exists and has appropriate permissions.
+- The key is authorized on the remote server.
+- Reverse port forwarding is permitted by the SSH server.
+
+### No Logs Created
+
+Ensure the user running the script has write permission for the repository's `logs` directory.
+
+## Security Considerations
+
+This project is intended for use in environments where direct network connectivity is restricted or unavailable.
+
+Before deploying it:
+
+- Never commit private SSH keys.
+- Never commit passwords, API tokens, or authentication cookies.
+- Avoid hardcoding production IP addresses and hostnames when they are not necessary.
+- Restrict SSH keys and accounts to the minimum required permissions.
+- Carefully review which local ports are exposed through reverse or Ngrok tunnels.
+- Ensure that exposed services require appropriate authentication.
+
+A tunnel provides a communication path; it does not automatically make the service behind the tunnel secure.
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit a pull request or open an issue to report bugs or suggest improvements.
+Contributions are welcome. Feel free to submit a pull request or open an issue for bug reports, improvements, or new features.
 
 ## License
 
-This project is licensed under the [MIT](https://choosealicense.com/licenses/mit/) License.
+This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
